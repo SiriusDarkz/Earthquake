@@ -21,9 +21,11 @@ import entity.Earthquake;
 
 public class SimpleAdapter extends ArrayAdapter<Earthquake> {
 
+    private List<Earthquake> earthquakes;
 
     public SimpleAdapter(Context context, int resource, List<Earthquake> earthquakes) {
         super(context, resource, earthquakes);
+        this.earthquakes = earthquakes;
     }
 
 
@@ -120,5 +122,22 @@ public class SimpleAdapter extends ArrayAdapter<Earthquake> {
         }
 
         return ContextCompat.getColor(getContext(), magnitudeColorResourceId);
+    }
+
+    public void setEarthquakes(List<Earthquake> earthquakes) {
+        clear();
+        super.addAll(earthquakes);
+        this.earthquakes = earthquakes;
+    }
+
+    public List<Earthquake> getEarthquakes() {
+        return earthquakes;
+    }
+
+    @Override
+    public void clear() {
+        this.earthquakes.clear();
+        super.clear();
+
     }
 }

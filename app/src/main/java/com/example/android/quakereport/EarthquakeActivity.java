@@ -15,73 +15,101 @@
  */
 package com.example.android.quakereport;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.Loader;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
+
 import android.support.v7.app.AppCompatActivity;
+
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
+import android.app.LoaderManager.LoaderCallbacks;
+
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import com.example.android.quakereport.adapter.SimpleAdapter;
+import com.example.android.quakereport.loaders.EarthquakeAsyncTaskLoader;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 import entity.Earthquake;
-import utils.NetworkingUtils;
-import utils.QueryUtils;
 
-public class EarthquakeActivity extends AppCompatActivity {
+public class EarthquakeActivity extends AppCompatActivity implements LoaderCallbacks<List<Earthquake>> {
 
     public static final String LOG_TAG = EarthquakeActivity.class.getName();
 
-    ListView earthquakeListView;
-    SimpleAdapter simpleAdapter;
-    List<Earthquake> earthquakes;
+    private ListView earthquakeListView;
+    private SimpleAdapter simpleAdapter;
+    private TextView emptyTextView;
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.earthquake_activity);
-        earthquakeListView  = (ListView) findViewById(R.id.list);
+        earthquakeListView  =  findViewById(R.id.list);
+        emptyTextView = findViewById(R.id.noItem);
+        progressBar = findViewById(R.id.progress_circular);
+
         earthquakeListView.setOnItemClickListener((parent, view, position, id) -> {
 
-            Intent magWebView = new Intent(Intent.ACTION_VIEW, Uri.parse(earthquakes.get(position).getUrl()));
+            Intent magWebView = new Intent(Intent.ACTION_VIEW, Uri.parse(simpleAdapter.getEarthquakes().get(position).getUrl()));
             startActivity(magWebView);
         });
 
+        simpleAdapter = new SimpleAdapter(this,0, new ArrayList<>());
 
-        new EarthquakeAsynData().execute(NetworkingUtils.USGS_WEBAPI);
-
-
-    }
-
-    private void updateUI(List<Earthquake> earthquakes) {
-
-        this.earthquakes = earthquakes;
-        simpleAdapter = new SimpleAdapter(this, 0,earthquakes);
         earthquakeListView.setAdapter(simpleAdapter);
+        earthquakeListView.setEmptyView(emptyTextView);
 
+        if(isConnectedToInternet())
+            getLoaderManager().initLoader(1,null,this);
+
+        else {
+            progressBar.setVisibility(View.GONE);
+            emptyTextView.setText("No Internet Connection");
+        }
+
+    }
+
+    @Override
+    public Loader<List<Earthquake>> onCreateLoader(int id, Bundle args) {
+        return new EarthquakeAsyncTaskLoader(EarthquakeActivity.this);
+    }
+
+    @Override
+    public void onLoadFinished(Loader<List<Earthquake>> loader, List<Earthquake> earthquakes) {
+
+        progressBar.setVisibility(View.GONE);
+
+        emptyTextView.setText("No Earthquakes founds");
+
+        if(earthquakes != null && !earthquakes.isEmpty())
+            simpleAdapter.setEarthquakes(earthquakes);
+
+    }
+
+    @Override
+    public void onLoaderReset(Loader<List<Earthquake>> loader) {
+        simpleAdapter.clear();
 
 
     }
 
+    private boolean isConnectedToInternet() {
+        ConnectivityManager cm =
+                (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
 
-    private class EarthquakeAsynData extends AsyncTask<String,Void,List<Earthquake>> {
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
 
-        @Override
-        protected List<Earthquake> doInBackground(String... urls) {
-            return NetworkingUtils.fetchJsonData(urls[0]);
-        }
-
-        @Override
-        protected void onPostExecute(List<Earthquake> earthquakes) {
-            updateUI(earthquakes);
-        }
+         return  activeNetwork != null &&
+                activeNetwork.isConnectedOrConnecting();
     }
-
 }
